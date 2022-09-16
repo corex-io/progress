@@ -16,6 +16,7 @@ type Progress struct {
 	current  int64 // 开始
 	isFinish bool
 	mutex    sync.Mutex
+	once     sync.Once
 }
 
 // New 初始化方法
@@ -52,12 +53,18 @@ func (progress *Progress) Print() {
 	// %-50s 左对齐, 占50个字符位置, 打印string
 	// %3d   右对齐, 占3个字符位置 打印int
 	if progress.options.End <= progress.current {
-		progress.isFinish = true
-		_, _ = fmt.Fprintf(os.Stderr, "\n")
+		progress.Finish()
 	}
 }
 
 // IsFinish return progress is finish or not.
 func (progress *Progress) IsFinish() bool {
 	return progress.isFinish
+}
+
+func (progress *Progress) Finish() {
+	progress.once.Do(func() {
+		progress.isFinish = true
+		_, _ = fmt.Fprintf(os.Stderr, "\n")
+	})
 }
