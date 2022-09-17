@@ -33,7 +33,9 @@ func New(opts ...Option) *Progress {
 func (progress *Progress) Add(i int64) *Progress {
 	progress.mutex.Lock()
 	defer progress.mutex.Unlock()
-	progress.current += i
+	if progress.current += i; progress.current > progress.options.End {
+		progress.current = progress.options.End
+	}
 	return progress
 }
 
