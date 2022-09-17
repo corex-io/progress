@@ -16,6 +16,7 @@ type Progress struct {
 	current int64 // 开始
 	mutex   sync.Mutex
 	once    sync.Once
+	stop    bool
 }
 
 // New 初始化方法
@@ -39,7 +40,9 @@ func (progress *Progress) Add(i int64) *Progress {
 func (progress *Progress) Print() {
 	progress.mutex.Lock()
 	defer progress.mutex.Unlock()
-
+	if progress.stop {
+		return
+	}
 	display := []string{progress.options.Content, "[", "", "]", "0.00%", "0/0", "(0s)"}
 	// 0: content  1: 开始符号  2: 进度显示  3: 结束符号  4: 进度  5: 当前/总量  6: 时间
 
@@ -50,14 +53,11 @@ func (progress *Progress) Print() {
 
 	display[4] = fmt.Sprintf("%7.3f%%", percent*100)
 	display[5] = fmt.Sprintf("%10d/%-10d", progress.current, progress.options.End)
-	display[6] = fmt.Sprintf("%6s", Human(time.Since(progress.now)))
+	display[6] = fmt.Sprintf("%11s", Human(time.Since(progress.now)))
 	width -= len(display[0]) + len(display[1]) + len(display[3]) + len(display[4]) + len(display[5]) + len(display[6])
-	//width = width * 4 / 5
-	display[2] = fmt.Sprintf("%-"+fmt.Sprintf("%d", width)+"s", strings.Repeat(progress.options.Graph, int(percent*100*float64(width)/float64(progress.options.End))))
-
+	width = width * int(progress.options.Div*100) / 100
+	display[2] = fmt.Sprintf("%-"+fmt.Sprintf("%d", width)+"s", strings.Repeat(progress.options.Graph, int(percent*float64(width))))
 	_, _ = fmt.Fprintf(os.Stderr, "\r%s", strings.Join(display, ""))
-	// %-50s 左对齐, 占50个字符位置, 打印string
-	// %3d   右对齐, 占3个字符位置 打印int
 	if progress.IsFinish() {
 		progress.Finish()
 	}
@@ -70,6 +70,7 @@ func (progress *Progress) IsFinish() bool {
 
 func (progress *Progress) Finish() {
 	progress.once.Do(func() {
+		progress.stop = true
 		_, _ = fmt.Fprintf(os.Stderr, "\n")
 	})
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	p := New(Content("测试1111111111: "))
+	p := New(Content("测试1111111111: "), Div(1))
 
 	for {
 		time.Sleep(1000 * time.Millisecond)
