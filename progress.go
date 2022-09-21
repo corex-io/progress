@@ -40,16 +40,16 @@ func (progress *Progress) Start() {
 	go func() {
 		timer := time.NewTimer(0 * time.Second)
 		defer timer.Stop()
+		var exit bool
 		for {
-			select {
-			case <-progress.ctx.Done():
+			if progress.Print(); progress.IsFinish() || exit {
 				progress.Finish()
 				return
+			}
+			select {
+			case <-progress.ctx.Done():
+				exit = true
 			case <-timer.C:
-				progress.Print()
-				if progress.IsFinish() {
-					return
-				}
 				timer.Reset(progress.options.Refresh)
 			}
 		}
@@ -73,28 +73,38 @@ func (progress *Progress) Add(i int64) *Progress {
 	return progress
 }
 
+func (progress *Progress) display() (string, error) {
+	display := []string{progress.options.Content, "[", "", "]", "0.00%", "0/0", "(0s)"}
+	// 0: content  1: 开始符号  2: 进度显示  3: 结束符号  4: 进度  5: 当前/总量  6: 时间
+	percent := float64(progress.current) / float64(progress.options.End)
+	display[4] = fmt.Sprintf("%7.3f%%", percent*100)
+	display[5] = fmt.Sprintf("%10d/%-10d", progress.current, progress.options.End)
+	display[6] = fmt.Sprintf("%11s", HumanTime(time.Since(progress.start)))
+
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+
+	width -= len(display[0]) + len(display[1]) + len(display[3]) + len(display[4]) + len(display[5]) + len(display[6])
+	width = width * int(progress.options.Div*100) / 100
+	if err != nil || width <= 0 {
+		return strings.Join(display, ""), err
+	}
+
+	display[2] = fmt.Sprintf("%-"+fmt.Sprintf("%d", width)+"s", strings.Repeat(progress.options.Graph, int(percent*float64(width))))
+	return strings.Join(display, ""), nil
+}
+
 func (progress *Progress) Print() {
 	progress.mutex.Lock()
 	defer progress.mutex.Unlock()
 	if progress.stop {
 		return
 	}
-	display := []string{progress.options.Content, "[", "", "]", "0.00%", "0/0", "(0s)"}
-	// 0: content  1: 开始符号  2: 进度显示  3: 结束符号  4: 进度  5: 当前/总量  6: 时间
-
-	var width, _, _ = term.GetSize(int(os.Stdout.Fd()))
-
-	percent := float64(progress.current) / float64(progress.options.End)
-
-	display[4] = fmt.Sprintf("%7.3f%%", percent*100)
-	display[5] = fmt.Sprintf("%10d/%-10d", progress.current, progress.options.End)
-	display[6] = fmt.Sprintf("%11s", HumanTime(time.Since(progress.start)))
-	width -= len(display[0]) + len(display[1]) + len(display[3]) + len(display[4]) + len(display[5]) + len(display[6])
-	width = width * int(progress.options.Div*100) / 100
-	if width > 0 {
-		display[2] = fmt.Sprintf("%-"+fmt.Sprintf("%d", width)+"s", strings.Repeat(progress.options.Graph, int(percent*float64(width))))
+	display, err := progress.display()
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%s\n", display)
+	} else {
+		_, _ = fmt.Fprintf(os.Stderr, "\r%s", display)
 	}
-	_, _ = fmt.Fprintf(os.Stderr, "\r%s", strings.Join(display, ""))
 	if progress.IsFinish() {
 		progress.Finish()
 	}
@@ -102,7 +112,7 @@ func (progress *Progress) Print() {
 
 // IsFinish return progress is finish or not.
 func (progress *Progress) IsFinish() bool {
-	return progress.current >= progress.options.End
+	return progress.current >= progress.options.End || progress.stop
 }
 
 func (progress *Progress) Finish() {

@@ -19,6 +19,9 @@ var tt = []struct {
 }
 
 func HumanTime(d time.Duration) string {
+	if d == 0 {
+		return "0s"
+	}
 	var b strings.Builder
 	i, t := 0, time.Duration(0)
 	for _, post := range tt {

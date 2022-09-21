@@ -27,7 +27,6 @@ func TestRun(t *testing.T) {
 			break
 		}
 	}
-	p2.Wait()
 
 }
 
