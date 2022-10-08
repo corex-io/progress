@@ -8,7 +8,7 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	p := New(context.Background(), Content("测试1111111111: "), Div(1))
+	p := New(context.Background(), Content("测试1111111111: "), Div(1), Tty(true))
 
 	for {
 		time.Sleep(1000 * time.Millisecond)

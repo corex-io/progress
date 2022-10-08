@@ -100,10 +100,10 @@ func (progress *Progress) Print() {
 		return
 	}
 	display, err := progress.display()
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%s\n", display)
+	if err == nil && progress.options.Tty {
+		_, _ = fmt.Fprintf(progress.options.Writer, "\r%s", display)
 	} else {
-		_, _ = fmt.Fprintf(os.Stderr, "\r%s", display)
+		_, _ = fmt.Fprintf(progress.options.Writer, "%s\n", display)
 	}
 	if progress.IsFinish() {
 		progress.Finish()
@@ -119,6 +119,6 @@ func (progress *Progress) Finish() {
 	progress.once.Do(func() {
 		defer progress.cancel()
 		progress.stop = true
-		_, _ = fmt.Fprintf(os.Stderr, "\n")
+		_, _ = fmt.Fprintf(progress.options.Writer, "\n")
 	})
 }

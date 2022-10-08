@@ -1,6 +1,10 @@
 package progress
 
-import "time"
+import (
+	"io"
+	"os"
+	"time"
+)
 
 type Options struct {
 	Start   int64
@@ -9,6 +13,8 @@ type Options struct {
 	Graph   string
 	Content string
 	Refresh time.Duration
+	Writer  io.Writer
+	Tty     bool
 }
 
 // Option func
@@ -22,11 +28,25 @@ func newOptions(opts ...Option) Options {
 		Div:     1.0,
 		Graph:   "█",                    // 设置进度条的样式
 		Refresh: 500 * time.Millisecond, // 0.5s
+		Writer:  os.Stdout,
 	}
 	for _, o := range opts {
 		o(&opt)
 	}
 	return opt
+}
+
+func Tty(tty bool) Option {
+	return func(o *Options) {
+		o.Tty = tty
+	}
+}
+
+// Writer to
+func Writer(w io.Writer) Option {
+	return func(o *Options) {
+		o.Writer = w
+	}
 }
 
 func Div(div float64) Option {
